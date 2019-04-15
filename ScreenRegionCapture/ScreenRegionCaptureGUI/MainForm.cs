@@ -12,6 +12,8 @@ namespace ScreenRegionCaptureGUI
     {
         CompressScreenCapture compressScreenCapture = new CompressScreenCapture();
         DecompressScreenCapture decompressScreenCapture = new DecompressScreenCapture();
+        private object lockObject = new object();
+
         public MainForm()
         {
             InitializeComponent();
@@ -24,9 +26,16 @@ namespace ScreenRegionCaptureGUI
 
         private void Iter()
         {
+            Image imgClone;
             while (true)
             {
-                UpdateImage(decompressScreenCapture.Iterate(compressScreenCapture.Iterate()));
+                byte[] data = compressScreenCapture.Iterate();
+                lock (lockObject)
+                {
+                    Image bmp = decompressScreenCapture.Iterate(data);
+                    imgClone = (Image)bmp.Clone();
+                }
+                UpdateImage(imgClone);
                 //compressScreenCapture.Iterate();
             }
         }

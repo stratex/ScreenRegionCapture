@@ -54,14 +54,62 @@ namespace ScreenRegionCaptureGUI.Classes
                     ulong* prevRow = (ulong*)(prev0 + previous.Stride * y);
                     ulong* curRow = (ulong*)(cur0 + current.Stride * y);
                     for (int x = 0; x < halfwidth; x++)
-                        *dst++ = curRow[x] ^ prevRow[x];
+                        *dst++ = prevRow[x] ^ curRow[x];
                 }
             }
+        }
+
+        private Bitmap Difference(Bitmap bmp0, Bitmap bmp1, bool restore)
+        {
+            int Bpp = 4;
+            var bmpData0 = bmp0.LockBits(
+                            new Rectangle(0, 0, bmp0.Width, bmp0.Height),
+                            ImageLockMode.ReadWrite, bmp0.PixelFormat);
+            var bmpData1 = bmp1.LockBits(
+                            new Rectangle(0, 0, bmp1.Width, bmp1.Height),
+                            ImageLockMode.ReadOnly, bmp1.PixelFormat);
+
+            int len = bmp0.Height * bmpData0.Stride;
+            byte[] data0 = new byte[len];
+            byte[] data1 = new byte[len];
+            Marshal.Copy(bmpData0.Scan0, data0, 0, len);
+            Marshal.Copy(bmpData1.Scan0, data1, 0, len);
+
+            for (int i = 0; i < len; i += Bpp)
+            {
+                if (restore)
+                {
+                    bool toberestored = (data1[i] != 2 && data1[i + 1] != 3 &&
+                                         data1[i + 2] != 7 && data1[i + 2] != 42);
+                    if (toberestored)
+                    {
+                        data0[i] = data1[i];    // Blue
+                        data0[i + 1] = data1[i + 1];  // Green 
+                        data0[i + 2] = data1[i + 2];  // Red
+                        data0[i + 3] = data1[i + 3];  // Alpha
+                    }
+                }
+                else
+                {
+                    bool changed = ((data0[i] != data1[i]) ||
+                                    (data0[i + 1] != data1[i + 1]) || (data0[i + 2] != data1[i + 2]));
+                    data0[i] = changed ? data1[i] : (byte)2;   // special markers
+                    data0[i + 1] = changed ? data1[i + 1] : (byte)3;   // special markers
+                    data0[i + 2] = changed ? data1[i + 2] : (byte)7;   // special markers
+                    data0[i + 3] = changed ? (byte)255 : (byte)42;  // special markers
+                }
+            }
+
+            Marshal.Copy(data0, 0, bmpData0.Scan0, len);
+            bmp0.UnlockBits(bmpData0);
+            bmp1.UnlockBits(bmpData1);
+            return bmp0;
         }
 
         private void Decompress()
         {
             decompressionBuffer = LZ4Codec.Unwrap(backbuf);
+
         }
 
         public Image Iterate(byte[] next)
@@ -74,12 +122,17 @@ namespace ScreenRegionCaptureGUI.Classes
             TimeSpan timeToDecompress = sw.Elapsed;
 
             cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
-            var lockedCur = cur.LockBits(new Rectangle(0, 0, cur.Width, cur.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-            var lockedPrev = prev.LockBits(new Rectangle(0, 0, prev.Width, prev.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+            //cur.Save("sdasd.bmp");
+            //prev.Save("prev.bmp");
+
+            //var lockedCur = cur.LockBits(new Rectangle(0, 0, cur.Width, cur.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+            //var lockedPrev = prev.LockBits(new Rectangle(0, 0, prev.Width, prev.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
 
             try
             {
-                ApplyXor(lockedPrev, lockedCur);
+                //ApplyXor(lockedPrev, lockedCur);
+                //ApplyXor(lockedPrev, lockedCur);
+                cur = Difference(prev, cur, true);
 
                 TimeSpan timeToXor = sw.Elapsed;
 
@@ -92,14 +145,16 @@ namespace ScreenRegionCaptureGUI.Classes
             }
             finally
             {
-                cur.UnlockBits(lockedCur);
-                prev.UnlockBits(lockedPrev);
+                //cur.UnlockBits(lockedCur);
+                //prev.UnlockBits(lockedPrev);
             }
             //cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
             //prev.Save("ret.bmp");
             //prev.Save("askdhjaksjdh.bmp");
 
-            return ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
+            Bitmap ret = prev;
+
+            return ret; //ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
         }
 
     }
