@@ -1,16 +1,9 @@
 ﻿using LZ4;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Configuration;
 using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ScreenRegionCaptureGUI.Classes
@@ -19,7 +12,7 @@ namespace ScreenRegionCaptureGUI.Classes
     {
         private static Bitmap DifferenceToBitmap(Bitmap bmp0, Bitmap bmp1, bool restore)
         {
-            int Bpp = 4;  // assuming an effective pixelformat of 32bpp
+            int Bpp = 4;
             var bmpData0 = bmp0.LockBits(
                             new Rectangle(0, 0, bmp0.Width, bmp0.Height),
                             ImageLockMode.ReadWrite, bmp0.PixelFormat);
@@ -67,7 +60,7 @@ namespace ScreenRegionCaptureGUI.Classes
 
         private static byte[] DifferenceToBytes(Bitmap bmp0, Bitmap bmp1, bool restore)
         {
-            int Bpp = 4;  // assuming an effective pixelformat of 32bpp
+            int Bpp = 4;
             var bmpData0 = bmp0.LockBits(
                             new Rectangle(0, 0, bmp0.Width, bmp0.Height),
                             ImageLockMode.ReadWrite, bmp0.PixelFormat);
@@ -188,7 +181,6 @@ namespace ScreenRegionCaptureGUI.Classes
             {
                 Decompress(next);
                 cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
-                //byte[] data = Difference(prev, cur, true);
                 cur = DifferenceToBitmap(prev, cur, true);
 
                 var tmp = cur;
