@@ -124,7 +124,7 @@ namespace ScreenRegionCaptureGUI.Classes
 
     }
 
-    public static class ImageExtensions
+    /*public static class ImageExtensions
     {
         public static Image ImageFromRawBgraArray(this byte[] arr, int width, int height, PixelFormat pixelFormat)
         {
@@ -144,5 +144,5 @@ namespace ScreenRegionCaptureGUI.Classes
             output.UnlockBits(bmpData);
             return output;
         }
-    }
+    }*/
 }

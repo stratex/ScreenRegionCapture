@@ -18,16 +18,16 @@ namespace ScreenRegionCaptureGUI
         private const int MOUSEEVENTF_RIGHTUP = 0x10;
 
         private Rectangle rect = new Rectangle(0, 0, 2560, 1440);
-        private CompressScreenCapture compressScreenCapture;
-        private DecompressScreenCapture decompressScreenCapture;
+        private ScreenRegionCapture.CompressScreen compressScreen;
+        private ScreenRegionCapture.DecompressScreen decompressScreen;
         private object lockObject = new object();
 
         public MainForm()
         {
             InitializeComponent();
 
-            compressScreenCapture = new CompressScreenCapture(rect);
-            decompressScreenCapture = new DecompressScreenCapture(rect);
+            compressScreen = new ScreenRegionCapture.CompressScreen(rect);
+            decompressScreen = new ScreenRegionCapture.DecompressScreen(rect);
 
             Thread t = new Thread(new ThreadStart(Iter));
             t.IsBackground = true;
@@ -40,10 +40,10 @@ namespace ScreenRegionCaptureGUI
             Image imgClone;
             while (true)
             {
-                byte[] data = compressScreenCapture.Iterate();
+                byte[] data = compressScreen.Iterate();
                 lock (lockObject)
                 {
-                    Image bmp = decompressScreenCapture.Iterate(data);
+                    Image bmp = decompressScreen.Iterate(data);
                     imgClone = (Image)bmp.Clone();
                 }
                 UpdateImage(imgClone);
@@ -53,13 +53,9 @@ namespace ScreenRegionCaptureGUI
         private void UpdateImage(Image bmp)
         {
             if (!InvokeRequired)
-            {
                 pictureBox1.Image = bmp;
-            }
             else
-            {
                 Invoke(new Action<Bitmap>(UpdateImage), bmp);
-            }
         }
 
         private void pictureBox1_MouseUp(object sender, MouseEventArgs e)

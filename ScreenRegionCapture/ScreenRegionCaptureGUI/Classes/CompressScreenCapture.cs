@@ -130,7 +130,7 @@ namespace ScreenRegionCaptureGUI.Classes
             cur = prev;
             prev = tmp;
 
-            prev.Save("sadas.bmp");
+            //prev.Save("sadas.bmp");
             return backbuf;
         }
 
