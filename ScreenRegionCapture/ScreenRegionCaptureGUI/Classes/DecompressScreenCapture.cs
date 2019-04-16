@@ -17,24 +17,15 @@ namespace ScreenRegionCaptureGUI.Classes
         private byte[] decompressionBuffer;
         private byte[] backbuf;
 
-        private int backbufSize;
-
-        private int n = 0;
-
-        public DecompressScreenCapture()
+        public DecompressScreenCapture(Rectangle Size)
         {
-            screenBounds = Screen.PrimaryScreen.Bounds;
+            screenBounds = Size;
 
             prev = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
             cur = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
 
             using (var g = Graphics.FromImage(prev))
                 g.Clear(Color.Black);
-
-            //decompressionBuffer = new byte[screenBounds.Width * screenBounds.Height * 4];
-
-            //backbufSize = LZ4Codec.MaximumOutputLength(decompressionBuffer.Length);
-            //backbuf = new byte[backbufSize];
         }
 
         private unsafe void ApplyXor(BitmapData previous, BitmapData current)
@@ -115,49 +106,24 @@ namespace ScreenRegionCaptureGUI.Classes
         public Image Iterate(byte[] next)
         {
             backbuf = next;
-            
-            Stopwatch sw = Stopwatch.StartNew();
 
             Decompress();
-            TimeSpan timeToDecompress = sw.Elapsed;
 
             cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
-            //cur.Save("sdasd.bmp");
-            //prev.Save("prev.bmp");
 
-            //var lockedCur = cur.LockBits(new Rectangle(0, 0, cur.Width, cur.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-            //var lockedPrev = prev.LockBits(new Rectangle(0, 0, prev.Width, prev.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+            cur = Difference(prev, cur, true);
 
-            try
-            {
-                //ApplyXor(lockedPrev, lockedCur);
-                //ApplyXor(lockedPrev, lockedCur);
-                cur = Difference(prev, cur, true);
-
-                TimeSpan timeToXor = sw.Elapsed;
-
-                                //if (n++ % 50 == 0)
-                //Console.Write("Iteration: {0:0.00}s, {1:0.00}s {2} Kb => {3:0.0} FPS     \r", timeToDecompress.TotalSeconds, timeToXor.TotalSeconds, length / 1024, 1.0 / sw.Elapsed.TotalSeconds);
-
-                var tmp = cur;
-                cur = prev;
-                prev = tmp;
-            }
-            finally
-            {
-                //cur.UnlockBits(lockedCur);
-                //prev.UnlockBits(lockedPrev);
-            }
-            //cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
-            //prev.Save("ret.bmp");
-            //prev.Save("askdhjaksjdh.bmp");
+            var tmp = cur;
+            cur = prev;
+            prev = tmp;
 
             Bitmap ret = prev;
 
-            return ret; //ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
+            return ret;
         }
 
     }
+
     public static class ImageExtensions
     {
         public static Image ImageFromRawBgraArray(this byte[] arr, int width, int height, PixelFormat pixelFormat)
