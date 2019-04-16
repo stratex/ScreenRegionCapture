@@ -54,7 +54,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Classes\CompressedCaptureScreen.cs" />
     <Compile Include="Classes\CompressScreenCapture.cs" />
     <Compile Include="Classes\DecompressScreenCapture.cs" />
     <Compile Include="Classes\ScreenRegionCapture.cs" />
