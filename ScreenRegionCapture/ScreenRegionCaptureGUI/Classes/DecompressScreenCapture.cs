@@ -1,10 +1,6 @@
-﻿using System;
-using System.Diagnostics;
+﻿using LZ4;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Windows.Forms;
-using LZ4;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace ScreenRegionCaptureGUI.Classes

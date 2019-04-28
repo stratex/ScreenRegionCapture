@@ -1,16 +1,9 @@
 ﻿using LZ4;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Configuration;
 using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ScreenRegionCaptureGUI.Classes
@@ -97,6 +90,78 @@ namespace ScreenRegionCaptureGUI.Classes
             return data0;
         }
 
+        private static unsafe byte[] ApplyXorToBytes(Bitmap prev, Bitmap cur)
+        {
+            var prevData = prev.LockBits(
+                new Rectangle(0, 0, prev.Width, prev.Height),
+                ImageLockMode.ReadOnly, prev.PixelFormat);
+            var curData = cur.LockBits(
+                new Rectangle(0, 0, cur.Width, cur.Height),
+                ImageLockMode.ReadOnly, cur.PixelFormat);
+
+            byte* prev0 = (byte*)prevData.Scan0.ToPointer();
+            byte* cur0 = (byte*)curData.Scan0.ToPointer();
+            byte[] buffer = new byte[prevData.Height * prevData.Stride];
+
+            int height = prev.Height;
+            int width = prev.Width;
+            int halfwidth = width / 2;
+
+            fixed (byte* target = buffer)
+            {
+                ulong* dst = (ulong*)target;
+                for (int y = 0; y < height; y++)
+                {
+                    ulong* prevRow = (ulong*)(prev0 + prevData.Stride * y);
+                    ulong* curRow = (ulong*)(cur0 + curData.Stride * y);
+                    for (int x = 0; x < halfwidth; x++)
+                        *dst++ = prevRow[x] ^ curRow[x];
+                }
+            }
+
+            //Marshal.Copy(buffer, 0, prevData.Scan0, curData.Height * curData.Stride);
+            prev.UnlockBits(prevData);
+            cur.UnlockBits(curData);
+
+            return buffer;
+        }
+
+        private static unsafe Bitmap ApplyXorToBitmap(Bitmap prev, Bitmap cur)
+        {
+            var prevData = prev.LockBits(
+                new Rectangle(0, 0, prev.Width, prev.Height),
+                ImageLockMode.ReadOnly, prev.PixelFormat);
+            var curData = cur.LockBits(
+                new Rectangle(0, 0, cur.Width, cur.Height),
+                ImageLockMode.ReadOnly, cur.PixelFormat);
+
+            byte* prev0 = (byte*)prevData.Scan0.ToPointer();
+            byte* cur0 = (byte*)curData.Scan0.ToPointer();
+            byte[] buffer = new byte[prevData.Height * prevData.Stride];
+
+            int height = prev.Height;
+            int width = prev.Width;
+            int halfwidth = width / 2;
+
+            fixed (byte* target = buffer)
+            {
+                ulong* dst = (ulong*)target;
+                for (int y = 0; y < height; y++)
+                {
+                    ulong* prevRow = (ulong*)(prev0 + prevData.Stride * y);
+                    ulong* curRow = (ulong*)(cur0 + curData.Stride * y);
+                    for (int x = 0; x < halfwidth; x++)
+                        *dst++ = prevRow[x] ^ curRow[x];
+                }
+            }
+
+            Marshal.Copy(buffer, 0, prevData.Scan0, curData.Height * curData.Stride);
+            prev.UnlockBits(prevData);
+            cur.UnlockBits(curData);
+
+            return prev;
+        }
+
         public class CompressScreen
         {
             private Rectangle screenBounds;
@@ -144,7 +209,8 @@ namespace ScreenRegionCaptureGUI.Classes
                 Stopwatch sw = Stopwatch.StartNew();
                 Capture();
                 TimeSpan timeToCapture = sw.Elapsed;
-                compressionBuffer = DifferenceToBytes(prev, cur, false);
+                //compressionBuffer = DifferenceToBytes(prev, cur, false);
+                compressionBuffer = ApplyXorToBytes(prev, cur);
                 TimeSpan timeToXor = sw.Elapsed;
                 int length = Compress();
                 TimeSpan timeToCompress = sw.Elapsed;
@@ -183,13 +249,14 @@ namespace ScreenRegionCaptureGUI.Classes
                 decompressionBuffer = LZ4Codec.Unwrap(data);
                 return decompressionBuffer.Length;
             }
-            
+
             public Image Iterate(byte[] next)
             {
                 Decompress(next);
                 cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
                 //byte[] data = Difference(prev, cur, true);
-                cur = DifferenceToBitmap(prev, cur, true);
+                //cur = DifferenceToBitmap(prev, cur, true);
+                cur = ApplyXorToBitmap(prev, cur);
 
                 var tmp = cur;
                 cur = prev;
