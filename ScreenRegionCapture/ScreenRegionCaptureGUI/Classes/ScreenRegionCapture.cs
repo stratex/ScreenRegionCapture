@@ -89,6 +89,77 @@ namespace ScreenRegionCaptureGUI.Classes
 
             return data0;
         }
+        private static unsafe byte[] ApplyXorToBytes(Bitmap prev, Bitmap cur)
+        {
+            var prevData = prev.LockBits(
+                new Rectangle(0, 0, prev.Width, prev.Height),
+                ImageLockMode.ReadOnly, prev.PixelFormat);
+            var curData = cur.LockBits(
+                new Rectangle(0, 0, cur.Width, cur.Height),
+                ImageLockMode.ReadOnly, cur.PixelFormat);
+
+            byte* prev0 = (byte*)prevData.Scan0.ToPointer();
+            byte* cur0 = (byte*)curData.Scan0.ToPointer();
+            byte[] buffer = new byte[prevData.Height * prevData.Stride];
+
+            int height = prev.Height;
+            int width = prev.Width;
+            int halfwidth = width / 2;
+
+            fixed (byte* target = buffer)
+            {
+                ulong* dst = (ulong*)target;
+                for (int y = 0; y < height; y++)
+                {
+                    ulong* prevRow = (ulong*)(prev0 + prevData.Stride * y);
+                    ulong* curRow = (ulong*)(cur0 + curData.Stride * y);
+                    for (int x = 0; x < halfwidth; x++)
+                        *dst++ = prevRow[x] ^ curRow[x];
+                }
+            }
+
+            //Marshal.Copy(buffer, 0, prevData.Scan0, curData.Height * curData.Stride);
+            prev.UnlockBits(prevData);
+            cur.UnlockBits(curData);
+
+            return buffer;
+        }
+
+        private static unsafe Bitmap ApplyXorToBitmap(Bitmap prev, Bitmap cur)
+        {
+            var prevData = prev.LockBits(
+                new Rectangle(0, 0, prev.Width, prev.Height),
+                ImageLockMode.ReadOnly, prev.PixelFormat);
+            var curData = cur.LockBits(
+                new Rectangle(0, 0, cur.Width, cur.Height),
+                ImageLockMode.ReadOnly, cur.PixelFormat);
+
+            byte* prev0 = (byte*)prevData.Scan0.ToPointer();
+            byte* cur0 = (byte*)curData.Scan0.ToPointer();
+            byte[] buffer = new byte[prevData.Height * prevData.Stride];
+
+            int height = prev.Height;
+            int width = prev.Width;
+            int halfwidth = width / 2;
+
+            fixed (byte* target = buffer)
+            {
+                ulong* dst = (ulong*)target;
+                for (int y = 0; y < height; y++)
+                {
+                    ulong* prevRow = (ulong*)(prev0 + prevData.Stride * y);
+                    ulong* curRow = (ulong*)(cur0 + curData.Stride * y);
+                    for (int x = 0; x < halfwidth; x++)
+                        *dst++ = prevRow[x] ^ curRow[x];
+                }
+            }
+
+            Marshal.Copy(buffer, 0, prevData.Scan0, curData.Height * curData.Stride);
+            prev.UnlockBits(prevData);
+            cur.UnlockBits(curData);
+
+            return prev;
+        }
 
         public class CompressScreen
         {
@@ -96,7 +167,7 @@ namespace ScreenRegionCaptureGUI.Classes
             private Rectangle imageRes;
             private Bitmap prev;
             private Bitmap cur;
-            private Bitmap ss;
+            //private Bitmap ss;
             private byte[] compressionBuffer;
 
             private byte[] backbuf;
@@ -108,9 +179,11 @@ namespace ScreenRegionCaptureGUI.Classes
                 screenBounds = Screen.PrimaryScreen.Bounds;
                 imageRes = Size;
 
-                prev = new Bitmap(imageRes.Width, imageRes.Height, PixelFormat.Format32bppArgb);
-                cur = new Bitmap(imageRes.Width, imageRes.Height, PixelFormat.Format32bppArgb);
-                ss = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
+                //prev = new Bitmap(imageRes.Width, imageRes.Height, PixelFormat.Format32bppArgb);
+                //cur = new Bitmap(imageRes.Width, imageRes.Height, PixelFormat.Format32bppArgb);
+                prev = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
+                cur = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
+                //ss = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
 
                 using (var g = Graphics.FromImage(prev))
                     g.Clear(Color.Black);
@@ -120,10 +193,10 @@ namespace ScreenRegionCaptureGUI.Classes
 
             private void Capture()
             {
-                using (var gfxScreenshot = Graphics.FromImage(ss))
+                using (var gfxScreenshot = Graphics.FromImage(cur))
                     gfxScreenshot.CopyFromScreen(screenBounds.X, screenBounds.Y, 0, 0, screenBounds.Size, CopyPixelOperation.SourceCopy);
-                using (var g = Graphics.FromImage(cur))
-                    g.DrawImage(ss, 0, 0, imageRes.Width, imageRes.Height);
+                //using (var g = Graphics.FromImage(cur))
+                    //g.DrawImage(ss, 0, 0, imageRes.Width, imageRes.Height);
             }
 
             private int Compress()
@@ -137,7 +210,8 @@ namespace ScreenRegionCaptureGUI.Classes
                 Stopwatch sw = Stopwatch.StartNew();
                 Capture();
                 TimeSpan timeToCapture = sw.Elapsed;
-                compressionBuffer = DifferenceToBytes(prev, cur, false);
+                //compressionBuffer = DifferenceToBytes(prev, cur, false);
+                compressionBuffer = ApplyXorToBytes(prev, cur);
                 TimeSpan timeToXor = sw.Elapsed;
                 int length = Compress();
                 TimeSpan timeToCompress = sw.Elapsed;
@@ -162,7 +236,8 @@ namespace ScreenRegionCaptureGUI.Classes
 
             public DecompressScreen(Rectangle Size)
             {
-                screenBounds = Size;
+                //screenBounds = Size;
+                screenBounds = Screen.PrimaryScreen.Bounds;
 
                 prev = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
                 cur = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
@@ -181,7 +256,8 @@ namespace ScreenRegionCaptureGUI.Classes
             {
                 Decompress(next);
                 cur = (Bitmap)ImageExtensions.ImageFromRawBgraArray(decompressionBuffer, screenBounds.Width, screenBounds.Height, PixelFormat.Format32bppArgb);
-                cur = DifferenceToBitmap(prev, cur, true);
+                //cur = DifferenceToBitmap(prev, cur, true);
+                cur = ApplyXorToBitmap(prev, cur);
 
                 var tmp = cur;
                 cur = prev;
